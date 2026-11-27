@@ -1,0 +1,8 @@
+{
+  "name": "GPT Bazaar",
+  "description": "Instant grocery delivery platform featuring a 16-screen mobile customer app, real-time admin inventory & order console powered by Firebase Firestore, and modular Expo, Next.js, and FastAPI scaffolds.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

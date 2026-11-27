@@ -1,0 +1,333 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default-deny all unmatched paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ==================== PRIMITIVES ====================
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (
+          request.auth.token.email == 'kuppamnithin786@gmail.com' &&
+          request.auth.token.email_verified == true
+        )
+      );
+    }
+
+    function isStringBounded(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    function isOptionalString(data, key, maxLen) {
+      return !(key in data) || (data[key] is string && data[key].size() <= maxLen);
+    }
+
+    function isOptionalTimestampOrIso(data, key) {
+      return !(key in data) || data[key] is timestamp || (data[key] is string && data[key].size() <= 40);
+    }
+
+    // ==================== VALIDATION BLUEPRINTS ====================
+    function isValidCategory(data) {
+      return data.keys().hasAll(['name', 'slug', 'bgTint', 'sortOrder', 'isActive', 'schemaVersion']) &&
+        data.keys().hasOnly([
+          'name', 'slug', 'subtitle', 'artworkKey', 'imageUrl', 'bgTint',
+          'subcategories', 'sortOrder', 'isActive', 'schemaVersion', 'createdAt', 'updatedAt'
+        ]) &&
+        isStringBounded(data.name, 1, 80) &&
+        isStringBounded(data.slug, 1, 80) &&
+        data.slug.matches('^[a-z0-9\\-]+$') &&
+        isOptionalString(data, 'subtitle', 160) &&
+        isOptionalString(data, 'artworkKey', 60) &&
+        isOptionalString(data, 'imageUrl', 1000) &&
+        isStringBounded(data.bgTint, 1, 32) &&
+        (!('subcategories' in data) || (
+          data.subcategories is list &&
+          data.subcategories.size() <= 12 &&
+          (data.subcategories.size() == 0 || data.subcategories[0] is string)
+        )) &&
+        data.sortOrder is int && data.sortOrder >= 0 && data.sortOrder <= 1000 &&
+        data.isActive is bool &&
+        data.schemaVersion is int && data.schemaVersion == 1 &&
+        isOptionalTimestampOrIso(data, 'createdAt') &&
+        isOptionalTimestampOrIso(data, 'updatedAt');
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll([
+          'name', 'slug', 'categoryId', 'dietaryType', 'variants',
+          'defaultVariantId', 'isActive', 'storeId', 'schemaVersion'
+        ]) &&
+        data.keys().hasOnly([
+          'name', 'slug', 'brand', 'tagline', 'categoryId', 'subcategory',
+          'description', 'keyFeatures', 'dietaryType', 'artworkKey', 'imageUrl',
+          'variants', 'defaultVariantId', 'rating', 'reviewCount', 'deliveryEtaMins',
+          'isPopular', 'isTrending', 'isActive', 'storeId', 'tags',
+          'schemaVersion', 'createdAt', 'updatedAt'
+        ]) &&
+        isStringBounded(data.name, 1, 140) &&
+        isStringBounded(data.slug, 1, 140) &&
+        data.slug.matches('^[a-z0-9\\-]+$') &&
+        isOptionalString(data, 'brand', 80) &&
+        isOptionalString(data, 'tagline', 160) &&
+        isValidId(data.categoryId) &&
+        isOptionalString(data, 'subcategory', 80) &&
+        isOptionalString(data, 'description', 1000) &&
+        (!('keyFeatures' in data) || (
+          data.keyFeatures is list &&
+          data.keyFeatures.size() <= 8 &&
+          (data.keyFeatures.size() == 0 || data.keyFeatures[0] is string)
+        )) &&
+        data.dietaryType in ['veg', 'non_veg', 'none'] &&
+        isOptionalString(data, 'artworkKey', 60) &&
+        isOptionalString(data, 'imageUrl', 1000) &&
+        data.variants is list &&
+        data.variants.size() >= 1 &&
+        data.variants.size() <= 8 &&
+        data.variants[0] is map &&
+        isStringBounded(data.defaultVariantId, 1, 60) &&
+        (!('rating' in data) || (data.rating is number && data.rating >= 0 && data.rating <= 5)) &&
+        (!('reviewCount' in data) || (data.reviewCount is int && data.reviewCount >= 0 && data.reviewCount <= 1000000)) &&
+        (!('deliveryEtaMins' in data) || (data.deliveryEtaMins is int && data.deliveryEtaMins >= 1 && data.deliveryEtaMins <= 180)) &&
+        (!('isPopular' in data) || data.isPopular is bool) &&
+        (!('isTrending' in data) || data.isTrending is bool) &&
+        data.isActive is bool &&
+        isValidId(data.storeId) &&
+        (!('tags' in data) || (
+          data.tags is list &&
+          data.tags.size() <= 10 &&
+          (data.tags.size() == 0 || data.tags[0] is string)
+        )) &&
+        data.schemaVersion is int && data.schemaVersion == 1 &&
+        isOptionalTimestampOrIso(data, 'createdAt') &&
+        isOptionalTimestampOrIso(data, 'updatedAt');
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll([
+          'orderNumber', 'storeId', 'customerName', 'deliveryAddress', 'items',
+          'pricing', 'paymentMethod', 'paymentStatus', 'status', 'statusTimeline', 'schemaVersion'
+        ]) &&
+        data.keys().hasOnly([
+          'orderNumber', 'storeId', 'customerName', 'customerPhone', 'deliveryAddress',
+          'items', 'pricing', 'paymentMethod', 'paymentStatus', 'status',
+          'statusTimeline', 'deliveryPartner', 'etaText', 'rating',
+          'schemaVersion', 'createdAt', 'updatedAt'
+        ]) &&
+        isStringBounded(data.orderNumber, 4, 32) &&
+        data.orderNumber.matches('^#?[A-Z0-9\\-]+$') &&
+        isValidId(data.storeId) &&
+        isStringBounded(data.customerName, 1, 100) &&
+        isOptionalString(data, 'customerPhone', 24) &&
+        data.deliveryAddress is map &&
+        data.items is list && data.items.size() >= 1 && data.items.size() <= 50 && data.items[0] is map &&
+        data.pricing is map &&
+        data.paymentMethod in ['upi', 'card', 'netbanking', 'wallet', 'cod'] &&
+        data.paymentStatus in ['pending', 'paid', 'cod_due', 'refunded'] &&
+        data.status in ['placed', 'packed', 'out_for_delivery', 'delivered', 'cancelled'] &&
+        data.statusTimeline is list && data.statusTimeline.size() >= 1 && data.statusTimeline.size() <= 10 && data.statusTimeline[0] is map &&
+        (!('deliveryPartner' in data) || data.deliveryPartner is map) &&
+        isOptionalString(data, 'etaText', 40) &&
+        (!('rating' in data) || (data.rating is number && data.rating >= 0 && data.rating <= 5)) &&
+        data.schemaVersion is int && data.schemaVersion == 1 &&
+        isOptionalTimestampOrIso(data, 'createdAt') &&
+        isOptionalTimestampOrIso(data, 'updatedAt');
+    }
+
+    function isValidCoupon(data) {
+      return data.keys().hasAll([
+          'code', 'title', 'discountType', 'discountValue', 'minOrderAmount', 'isActive', 'schemaVersion'
+        ]) &&
+        data.keys().hasOnly([
+          'code', 'title', 'description', 'discountType', 'discountValue',
+          'minOrderAmount', 'maxDiscount', 'isActive', 'schemaVersion', 'createdAt'
+        ]) &&
+        isStringBounded(data.code, 2, 32) &&
+        data.code.matches('^[A-Z0-9_\\-]+$') &&
+        isStringBounded(data.title, 1, 100) &&
+        isOptionalString(data, 'description', 240) &&
+        data.discountType in ['flat', 'percent'] &&
+        data.discountValue is number && data.discountValue >= 0 && data.discountValue <= 10000 &&
+        data.minOrderAmount is number && data.minOrderAmount >= 0 && data.minOrderAmount <= 100000 &&
+        (!('maxDiscount' in data) || (data.maxDiscount is number && data.maxDiscount >= 0 && data.maxDiscount <= 10000)) &&
+        data.isActive is bool &&
+        data.schemaVersion is int && data.schemaVersion == 1 &&
+        isOptionalTimestampOrIso(data, 'createdAt');
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['category', 'title', 'message', 'isRead', 'schemaVersion']) &&
+        data.keys().hasOnly([
+          'category', 'title', 'message', 'orderId', 'artworkKey',
+          'isRead', 'schemaVersion', 'createdAt'
+        ]) &&
+        data.category in ['orders', 'offers', 'account', 'updates'] &&
+        isStringBounded(data.title, 1, 120) &&
+        isStringBounded(data.message, 1, 320) &&
+        isOptionalString(data, 'orderId', 80) &&
+        isOptionalString(data, 'artworkKey', 60) &&
+        data.isRead is bool &&
+        data.schemaVersion is int && data.schemaVersion == 1 &&
+        isOptionalTimestampOrIso(data, 'createdAt');
+    }
+
+    function isValidStore(data) {
+      return data.keys().hasAll(['name', 'city', 'pincode', 'avgDeliveryMins', 'isOpen', 'schemaVersion']) &&
+        data.keys().hasOnly([
+          'name', 'city', 'pincode', 'serviceablePincodes',
+          'avgDeliveryMins', 'isOpen', 'schemaVersion', 'createdAt'
+        ]) &&
+        isStringBounded(data.name, 1, 120) &&
+        isStringBounded(data.city, 1, 80) &&
+        isStringBounded(data.pincode, 4, 12) &&
+        (!('serviceablePincodes' in data) || (
+          data.serviceablePincodes is list &&
+          data.serviceablePincodes.size() <= 50 &&
+          (data.serviceablePincodes.size() == 0 || data.serviceablePincodes[0] is string)
+        )) &&
+        data.avgDeliveryMins is int && data.avgDeliveryMins >= 5 && data.avgDeliveryMins <= 120 &&
+        data.isOpen is bool &&
+        data.schemaVersion is int && data.schemaVersion == 1 &&
+        isOptionalTimestampOrIso(data, 'createdAt');
+    }
+
+    // ==================== COLLECTION RULES ====================
+
+    // Connection health check path (read-only)
+    match /test/{docId} {
+      allow get: if isValidId(docId);
+    }
+
+    // Admin registry (Phase 2 RBAC)
+    match /admins/{adminId} {
+      allow get: if isSignedIn() && isValidId(adminId) && (request.auth.uid == adminId || isAdmin());
+      allow write: if false;
+    }
+
+    // Categories collection (Phase 1 Prototype: public storefront read + schema-validated catalog writes)
+    match /categories/{categoryId} {
+      allow get: if isValidId(categoryId);
+      allow list: if resource.data.schemaVersion == 1;
+      allow create: if isValidId(categoryId) && isValidCategory(incoming());
+      allow update: if isValidId(categoryId) && isValidCategory(incoming()) && (
+        isAdmin() ||
+        (
+          incoming().schemaVersion == existing().schemaVersion &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'name', 'subtitle', 'artworkKey', 'imageUrl', 'bgTint',
+            'subcategories', 'sortOrder', 'isActive', 'updatedAt'
+          ])
+        )
+      );
+      allow delete: if isValidId(categoryId) && isAdmin();
+    }
+
+    // Products collection (Phase 1 Prototype: public storefront read + schema-validated admin catalog & stock updates)
+    match /products/{productId} {
+      allow get: if isValidId(productId);
+      allow list: if resource.data.schemaVersion == 1;
+      allow create: if isValidId(productId) && isValidProduct(incoming());
+      allow update: if isValidId(productId) && isValidProduct(incoming()) && (
+        isAdmin() ||
+        (
+          incoming().schemaVersion == existing().schemaVersion &&
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly(['variants', 'updatedAt']) ||
+            incoming().diff(existing()).affectedKeys().hasOnly(['isActive', 'isPopular', 'isTrending', 'updatedAt']) ||
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'name', 'slug', 'brand', 'tagline', 'categoryId', 'subcategory',
+              'description', 'keyFeatures', 'dietaryType', 'artworkKey', 'imageUrl',
+              'variants', 'defaultVariantId', 'deliveryEtaMins', 'isPopular',
+              'isTrending', 'isActive', 'tags', 'updatedAt'
+            ])
+          )
+        )
+      );
+      allow delete: if isValidId(productId);
+    }
+
+    // Orders collection (Phase 1 Prototype: real-time customer placement + admin dispatch status progression)
+    match /orders/{orderId} {
+      allow get: if isValidId(orderId);
+      allow list: if resource.data.schemaVersion == 1;
+      allow create: if isValidId(orderId) && isValidOrder(incoming()) && incoming().status == 'placed';
+      allow update: if isValidId(orderId) && isValidOrder(incoming()) && (
+        isAdmin() ||
+        (
+          incoming().orderNumber == existing().orderNumber &&
+          incoming().schemaVersion == existing().schemaVersion &&
+          (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
+          (
+            (
+              existing().status != 'delivered' &&
+              existing().status != 'cancelled' &&
+              incoming().diff(existing()).affectedKeys().hasOnly(['status', 'statusTimeline', 'etaText', 'deliveryPartner', 'paymentStatus', 'updatedAt'])
+            ) ||
+            (
+              existing().status == 'delivered' &&
+              incoming().status == 'delivered' &&
+              incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'updatedAt'])
+            )
+          )
+        )
+      );
+      allow delete: if isValidId(orderId) && isAdmin();
+    }
+
+    // Coupons collection
+    match /coupons/{couponId} {
+      allow get: if isValidId(couponId);
+      allow list: if resource.data.schemaVersion == 1;
+      allow create: if isValidId(couponId) && isValidCoupon(incoming());
+      allow update: if isValidId(couponId) && isValidCoupon(incoming()) && (
+        isAdmin() ||
+        incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'discountValue', 'minOrderAmount', 'maxDiscount', 'isActive'])
+      );
+      allow delete: if isValidId(couponId) && isAdmin();
+    }
+
+    // Notifications collection
+    match /notifications/{notificationId} {
+      allow get: if isValidId(notificationId);
+      allow list: if resource.data.schemaVersion == 1;
+      allow create: if isValidId(notificationId) && isValidNotification(incoming());
+      allow update: if isValidId(notificationId) && isValidNotification(incoming()) && (
+        isAdmin() ||
+        incoming().diff(existing()).affectedKeys().hasOnly(['isRead'])
+      );
+      allow delete: if isValidId(notificationId) && isAdmin();
+    }
+
+    // Dark-store fulfillment hubs
+    match /stores/{storeId} {
+      allow get: if isValidId(storeId);
+      allow list: if resource.data.schemaVersion == 1;
+      allow create: if isValidId(storeId) && isValidStore(incoming());
+      allow update: if isValidId(storeId) && isValidStore(incoming()) && (
+        isAdmin() ||
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avgDeliveryMins', 'isOpen', 'serviceablePincodes'])
+      );
+      allow delete: if isValidId(storeId) && isAdmin();
+    }
+  }
+}

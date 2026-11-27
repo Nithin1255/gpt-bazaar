@@ -1,0 +1,155 @@
+{
+  "entities": {
+    "Category": {
+      "title": "Category",
+      "description": "Grocery department category with display metadata, pastel wash tint, and subcategories for filtering.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "slug": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[a-z0-9\\-]+$" },
+        "subtitle": { "type": "string", "maxLength": 160 },
+        "artworkKey": { "type": "string", "maxLength": 60 },
+        "imageUrl": { "type": "string", "maxLength": 1000 },
+        "bgTint": { "type": "string", "maxLength": 32 },
+        "subcategories": { "type": "array", "description": "Up to 12 subcategory labels." },
+        "sortOrder": { "type": "integer" },
+        "isActive": { "type": "boolean" },
+        "schemaVersion": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "slug", "bgTint", "sortOrder", "isActive", "schemaVersion"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Generalized SKU entity supporting multi-weight variants, MRP/selling price, dietary flag, dark-store stock, and rich details.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "slug": { "type": "string", "minLength": 1, "maxLength": 140, "pattern": "^[a-z0-9\\-]+$" },
+        "brand": { "type": "string", "maxLength": 80 },
+        "tagline": { "type": "string", "maxLength": 160 },
+        "categoryId": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "subcategory": { "type": "string", "maxLength": 80 },
+        "description": { "type": "string", "maxLength": 1000 },
+        "keyFeatures": { "type": "array", "description": "Up to 8 bullet highlights." },
+        "dietaryType": { "type": "string", "enum": ["veg", "non_veg", "none"] },
+        "artworkKey": { "type": "string", "maxLength": 60 },
+        "imageUrl": { "type": "string", "maxLength": 1000 },
+        "variants": { "type": "array", "description": "Up to 8 pack size variants with price, mrp, stock, sku." },
+        "defaultVariantId": { "type": "string", "maxLength": 60 },
+        "rating": { "type": "number" },
+        "reviewCount": { "type": "integer" },
+        "deliveryEtaMins": { "type": "integer" },
+        "isPopular": { "type": "boolean" },
+        "isTrending": { "type": "boolean" },
+        "isActive": { "type": "boolean" },
+        "storeId": { "type": "string", "maxLength": 80, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "tags": { "type": "array", "description": "Up to 10 search tags." },
+        "schemaVersion": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "slug", "categoryId", "dietaryType", "variants", "defaultVariantId", "isActive", "storeId", "schemaVersion"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Real-time customer order with itemized snapshot, pricing breakdown, live 4-stage fulfillment status, and rider assignment.",
+      "type": "object",
+      "properties": {
+        "orderNumber": { "type": "string", "minLength": 4, "maxLength": 32, "pattern": "^#?[A-Z0-9\\-]+$" },
+        "storeId": { "type": "string", "maxLength": 80, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "customerName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "customerPhone": { "type": "string", "maxLength": 24 },
+        "deliveryAddress": { "type": "object" },
+        "items": { "type": "array", "description": "Up to 50 line items." },
+        "pricing": { "type": "object" },
+        "paymentMethod": { "type": "string", "enum": ["upi", "card", "netbanking", "wallet", "cod"] },
+        "paymentStatus": { "type": "string", "enum": ["pending", "paid", "cod_due", "refunded"] },
+        "status": { "type": "string", "enum": ["placed", "packed", "out_for_delivery", "delivered", "cancelled"] },
+        "statusTimeline": { "type": "array", "description": "Up to 10 timestamped status events." },
+        "deliveryPartner": { "type": "object" },
+        "etaText": { "type": "string", "maxLength": 40 },
+        "rating": { "type": "number" },
+        "schemaVersion": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["orderNumber", "storeId", "customerName", "deliveryAddress", "items", "pricing", "paymentMethod", "paymentStatus", "status", "statusTimeline", "schemaVersion"]
+    },
+    "Coupon": {
+      "title": "Coupon",
+      "description": "Promotional discount code applied during cart checkout.",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string", "minLength": 2, "maxLength": 32, "pattern": "^[A-Z0-9_\\-]+$" },
+        "title": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 240 },
+        "discountType": { "type": "string", "enum": ["flat", "percent"] },
+        "discountValue": { "type": "number" },
+        "minOrderAmount": { "type": "number" },
+        "maxDiscount": { "type": "number" },
+        "isActive": { "type": "boolean" },
+        "schemaVersion": { "type": "integer" }
+      },
+      "required": ["code", "title", "discountType", "discountValue", "minOrderAmount", "isActive", "schemaVersion"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "Customer feed notification for real-time order updates, weekend offers, price drops, and account alerts.",
+      "type": "object",
+      "properties": {
+        "category": { "type": "string", "enum": ["orders", "offers", "account", "updates"] },
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "message": { "type": "string", "minLength": 1, "maxLength": 320 },
+        "orderId": { "type": "string", "maxLength": 80 },
+        "artworkKey": { "type": "string", "maxLength": 60 },
+        "isRead": { "type": "boolean" },
+        "schemaVersion": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["category", "title", "message", "isRead", "schemaVersion"]
+    },
+    "Store": {
+      "title": "Store",
+      "description": "Dark-store fulfillment hub registry designed for Phase 2+ multi-hub geo-fencing and hyperlocal inventory.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "city": { "type": "string", "maxLength": 80 },
+        "pincode": { "type": "string", "maxLength": 12 },
+        "serviceablePincodes": { "type": "array" },
+        "avgDeliveryMins": { "type": "integer" },
+        "isOpen": { "type": "boolean" },
+        "schemaVersion": { "type": "integer" }
+      },
+      "required": ["name", "city", "pincode", "avgDeliveryMins", "isOpen", "schemaVersion"]
+    }
+  },
+  "firestore": {
+    "/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "Top-level grocery categories displayed across Customer Home, Search, Categories, and Admin Console."
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Live product catalog with multi-weight variants and inventory stock counts."
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Real-time customer orders synced live between Customer Order Tracker and Admin Fulfillment Queue."
+    },
+    "/coupons/{couponId}": {
+      "schema": { "$ref": "#/entities/Coupon" },
+      "description": "Active promotional discount coupons validated at checkout."
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "Real-time order and offer notifications displayed in the Customer Notifications feed."
+    },
+    "/stores/{storeId}": {
+      "schema": { "$ref": "#/entities/Store" },
+      "description": "Dark-store fulfillment hub metadata for hyperlocal delivery zones."
+    }
+  }
+}

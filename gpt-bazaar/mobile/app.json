@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "GPT Bazaar",
+    "slug": "gpt-bazaar",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "gptbazaar",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#074220"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.gptbazaar.mobile",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
+    },
+    "android": {
+      "package": "com.gptbazaar.mobile",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#074220"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "68a18483-1fc5-43b8-8686-54d7e944d32e"
+      }
+    },
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

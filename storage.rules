@@ -1,0 +1,28 @@
+rules_version = '2';
+
+// Deploy these rules in Firebase Console -> Storage -> Rules
+// (or via Firebase CLI: `firebase deploy --only storage`)
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAllowedImage() {
+      return request.resource != null &&
+        request.resource.size >= 1024 &&
+        request.resource.size <= 5 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/(jpeg|png|webp|avif)');
+    }
+
+    match /products/{fileName} {
+      allow read: if true;
+      allow write: if isAllowedImage() && fileName.size() <= 160;
+    }
+
+    match /categories/{fileName} {
+      allow read: if true;
+      allow write: if isAllowedImage() && fileName.size() <= 160;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

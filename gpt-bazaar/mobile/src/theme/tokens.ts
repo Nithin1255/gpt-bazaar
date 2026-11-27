@@ -1,0 +1,38 @@
+export const GPTBazaarTheme = {
+  colors: {
+    brandPrimary: '#0E6F2D',
+    brandHover: '#0A5823',
+    brandDeep: '#074220',
+    brandAccent: '#FFC800',
+    surfaceMint: '#EDF8F0',
+    canvas: '#F6F8F7',
+    surface: '#FFFFFF',
+    borderSubtle: '#E4EBE6',
+    inkPrimary: '#0F172A',
+    inkMuted: '#64748B',
+    offerCrimson: '#DC2626',
+    warningAmber: '#D97706',
+    categoryTints: {
+      mint: '#EEF9F0',
+      sky: '#EDF5FE',
+      cream: '#FEF8E8',
+      blush: '#FDF0F3',
+      lavender: '#F4F0FD',
+      aqua: '#EBF9F8',
+    },
+  },
+  radii: {
+    sm: 8,
+    md: 12,
+    lg: 16,
+    xl: 20,
+    pill: 999,
+  },
+  spacing: {
+    xs: 4,
+    sm: 8,
+    md: 12,
+    lg: 16,
+    xl: 24,
+  },
+} as const;
