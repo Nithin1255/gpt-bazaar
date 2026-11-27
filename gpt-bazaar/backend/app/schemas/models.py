@@ -9,6 +9,37 @@ PaymentMethod = Literal["upi", "card", "netbanking", "wallet", "cod"]
 PaymentStatus = Literal["pending", "paid", "cod_due", "refunded"]
 
 
+class CategoryCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=80)
+    slug: str = Field(..., pattern=r"^[a-z0-9\-]+$", max_length=80)
+    subtitle: Optional[str] = Field("", max_length=160)
+    artworkKey: Optional[str] = Field("fruits_veg", max_length=60)
+    imageUrl: Optional[str] = Field("", max_length=1000)
+    bgTint: str = Field("#EEF9F0", max_length=32)
+    subcategories: list[str] = Field(default_factory=list, max_length=12)
+    sortOrder: int = Field(0, ge=0, le=1000)
+    isActive: bool = True
+
+
+class CategoryUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=80)
+    slug: Optional[str] = Field(None, pattern=r"^[a-z0-9\-]+$", max_length=80)
+    subtitle: Optional[str] = Field(None, max_length=160)
+    artworkKey: Optional[str] = Field(None, max_length=60)
+    imageUrl: Optional[str] = Field(None, max_length=1000)
+    bgTint: Optional[str] = Field(None, max_length=32)
+    subcategories: Optional[list[str]] = Field(None, max_length=12)
+    sortOrder: Optional[int] = Field(None, ge=0, le=1000)
+    isActive: Optional[bool] = None
+
+
+class CategoryRecord(CategoryCreate):
+    id: str
+    schemaVersion: int = 1
+    createdAt: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updatedAt: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
 class ProductVariant(BaseModel):
     id: str = Field(..., max_length=60)
     label: str = Field(..., max_length=60)
@@ -38,7 +69,7 @@ class ProductCreate(BaseModel):
     isPopular: bool = False
     isTrending: bool = False
     isActive: bool = True
-    storeId: str = "store-chittoor-01"
+    storeId: str = "store-chittoor-hub-1"
     tags: list[str] = Field(default_factory=list, max_length=10)
 
 
@@ -81,6 +112,8 @@ class OrderItem(BaseModel):
     unitPrice: float = Field(..., gt=0)
     mrp: float = Field(..., gt=0)
     qty: int = Field(..., ge=1)
+    artworkKey: Optional[str] = "fruits_veg"
+    imageUrl: Optional[str] = ""
 
 
 class OrderPricing(BaseModel):
@@ -101,7 +134,7 @@ class OrderTimelineEvent(BaseModel):
 
 
 class OrderCreate(BaseModel):
-    storeId: str = "store-chittoor-01"
+    storeId: str = "store-chittoor-hub-1"
     customerName: str = Field(..., min_length=1, max_length=100)
     customerPhone: Optional[str] = Field(None, max_length=24)
     deliveryAddress: dict
@@ -125,3 +158,49 @@ class OrderRecord(OrderCreate):
 class OrderStatusUpdate(BaseModel):
     status: OrderStatus
     note: Optional[str] = None
+
+
+class OrderRatingUpdate(BaseModel):
+    rating: int = Field(..., ge=1, le=5)
+
+
+class AppConfigRecord(BaseModel):
+    id: str = "mobile"
+    storeName: str = "GPT Bazaar Chittoor Hub"
+    hubCity: str = "Chittoor"
+    pincode: str = "517584"
+    deliveryEtaText: str = "10–15 mins"
+    isStoreOpen: bool = True
+    heroBadge: str = "UP TO 40% OFF"
+    heroTitle: str = "Fresh picks, better prices"
+    heroSubtitle: str = "Handpicked farm produce & daily essentials delivered in minutes."
+    dealBannerTitle: str = "Free delivery on orders above ₹149"
+    dealBannerSubtitle: str = "Use code GROCER10 in cart for instant savings on daily essentials."
+    freeDeliveryThreshold: float = 149
+    deliveryFee: float = 25
+    packagingFee: float = 5
+    schemaVersion: int = 1
+    updatedAt: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+class AppConfigUpdate(BaseModel):
+    storeName: Optional[str] = Field(None, min_length=1, max_length=120)
+    hubCity: Optional[str] = Field(None, min_length=1, max_length=80)
+    pincode: Optional[str] = Field(None, min_length=4, max_length=12)
+    deliveryEtaText: Optional[str] = Field(None, min_length=1, max_length=40)
+    isStoreOpen: Optional[bool] = None
+    heroBadge: Optional[str] = Field(None, max_length=40)
+    heroTitle: Optional[str] = Field(None, max_length=120)
+    heroSubtitle: Optional[str] = Field(None, max_length=240)
+    dealBannerTitle: Optional[str] = Field(None, max_length=120)
+    dealBannerSubtitle: Optional[str] = Field(None, max_length=240)
+    freeDeliveryThreshold: Optional[float] = Field(None, ge=0)
+    deliveryFee: Optional[float] = Field(None, ge=0)
+    packagingFee: Optional[float] = Field(None, ge=0)
+
+
+class UploadImageResponse(BaseModel):
+    imageUrl: str
+    path: str
+    contentType: str
+    sizeBytes: int

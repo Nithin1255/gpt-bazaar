@@ -3,3 +3,7 @@ uvicorn[standard]>=0.32.0
 pydantic>=2.9.0
 python-dotenv>=1.0.1
 websockets>=13.1
+python-multipart>=0.0.12
+psycopg[binary]>=3.2.0
+pg8000>=1.31.0
+supabase>=2.10.0
