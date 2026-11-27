@@ -1,5 +1,4 @@
-import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
-import { storage } from './firebase';
+import { API_BASE_URL } from './apiClient';
 
 export const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'] as const;
 export const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'avif'] as const;
@@ -66,33 +65,31 @@ export function validateImageUrl(raw: string): string {
 export async function uploadProductImage(
   file: File,
   slugHint: string,
-  onProgress?: (pct: number) => void
+  folder: 'products' | 'categories' = 'products'
 ): Promise<string> {
   await validateImageFile(file);
-  const safeSlug = slugHint.toLowerCase().replace(/[^a-z0-9-]+/g, '-').slice(0, 48) || 'sku';
-  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-  const storageRef = ref(storage, `products/${safeSlug}-${Date.now()}.${ext}`);
+  const safeSlug =
+    slugHint
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 48) || 'sku';
 
-  return new Promise((resolve, reject) => {
-    const task = uploadBytesResumable(storageRef, file, {
-      contentType: file.type,
-      cacheControl: 'public, max-age=31536000',
-    });
-    task.on(
-      'state_changed',
-      (snap) => {
-        if (snap.totalBytes > 0 && onProgress) {
-          onProgress(Math.round((snap.bytesTransferred / snap.totalBytes) * 100));
-        }
-      },
-      (err) => reject(err),
-      async () => {
-        try {
-          resolve(await getDownloadURL(task.snapshot.ref));
-        } catch (err) {
-          reject(err);
-        }
-      }
-    );
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('folder', folder);
+  formData.append('slug', safeSlug);
+
+  const res = await fetch(`${API_BASE_URL}/api/v1/uploads/image`, {
+    method: 'POST',
+    body: formData,
   });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Image upload failed (${res.status}): ${text}`);
+  }
+
+  const data = (await res.json()) as { imageUrl: string };
+  return data.imageUrl;
 }

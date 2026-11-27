@@ -1,8 +1,17 @@
-# GPT Bazaar — Admin Console (Next.js)
+# GPT Bazaar — Admin Web Console (Next.js)
 
-Real-time inventory management, product catalog upload, and live order fulfillment console built with **Next.js App Router**, **React Query**, **Tailwind CSS**, and **Firebase Firestore**.
+Standalone Next.js App Router admin interface deployed on **Vercel**. Built with **TypeScript**, **TanStack Query**, and **Tailwind CSS v4** to manage products, upload product/category images, control mobile app storefront settings, and process live customer orders through the **FastAPI Backend** (`gpt-bazaar/backend`), which persists everything to **Supabase PostgreSQL & Storage**.
 
-## Quick Start
+It has **zero local dependencies** on `backend/`, `mobile/`, or any parent directory.
+
+## Environment Variables
+
+Copy `.env.example` to `.env.local`:
+
+- `NEXT_PUBLIC_API_BASE_URL` — Your Render FastAPI backend URL (e.g. `https://gpt-bazaar-api.onrender.com`, or `http://localhost:8000` locally)
+- `NEXT_PUBLIC_WS_BASE_URL` — Optional explicit WebSocket base URL (derived automatically from `NEXT_PUBLIC_API_BASE_URL` if omitted)
+
+## Local Setup
 
 ```bash
 cp .env.example .env.local
@@ -10,16 +19,10 @@ npm install
 npm run dev
 ```
 
-The admin console runs on `http://localhost:3001`.
+Runs at `http://localhost:3001`.
 
-## Project Structure
+## Vercel Deployment
 
-- `src/app/page.tsx` — Live order dispatch & inventory operations console
-- `src/hooks/useRealtimeOrders.ts` — Firestore real-time order listener & status advancement hook
-- `CONTEXT.md` — AI/developer architectural context for the admin console
-- `ROADMAP.md` — Phased feature roadmap
-
-## Companion Repositories
-
-- **Customer Mobile App (Expo)**: `gpt-bazaar-mobile`
-- **Backend API (Python FastAPI)**: `gpt-bazaar-backend`
+- **Root Directory**: `gpt-bazaar/web`
+- **Framework Preset**: Next.js
+- **Environment Variable**: Set `NEXT_PUBLIC_API_BASE_URL` to your Render backend URL.
