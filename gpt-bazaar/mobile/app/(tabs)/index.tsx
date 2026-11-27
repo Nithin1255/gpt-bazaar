@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -31,12 +32,13 @@ import { GPTBazaarTheme } from '../../src/theme/tokens';
 export default function HomeScreen() {
   const router = useRouter();
   const {
+    appConfig,
     categories,
     products,
     loading,
     refreshing,
     refreshCatalog,
-    firestoreError,
+    syncError,
     selectedAddress,
     unreadNotificationsCount,
     wishlistIds,
@@ -64,39 +66,63 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* Top Location & Notification Header */}
+      {/* Top App Brand, Location & Notification Header */}
       <View style={styles.topHeader}>
+        <View style={styles.brandHeaderRow}>
+          <View style={styles.brandLeft}>
+            <Image
+              source={require('../../assets/icon.png')}
+              style={styles.appIcon}
+              resizeMode="cover"
+            />
+            <View>
+              <View style={styles.brandNameRow}>
+                <Text style={styles.brandTextDark}>GPT </Text>
+                <Text style={styles.brandTextGreen}>Bazaar</Text>
+              </View>
+              <View style={styles.etaInlineRow}>
+                <Text style={styles.deliverInText}>
+                  {appConfig.deliveryEtaText || '10–15 mins'}
+                </Text>
+                <View style={styles.expressTag}>
+                  <Zap size={10} color={GPTBazaarTheme.colors.brandDeep} />
+                  <Text style={styles.expressTagText}>
+                    {appConfig.isStoreOpen ? 'EXPRESS' : 'CLOSED'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.headerActions}>
+            <Pressable
+              onPress={() => router.push('/search')}
+              style={styles.notifBtn}
+              accessibilityLabel="Search products"
+            >
+              <Search size={19} color={GPTBazaarTheme.colors.inkPrimary} />
+            </Pressable>
+
+            <Pressable
+              onPress={() => router.push('/notifications')}
+              style={styles.notifBtn}
+              accessibilityLabel="Notifications"
+            >
+              <Bell size={20} color={GPTBazaarTheme.colors.inkPrimary} />
+              {unreadNotificationsCount > 0 && <View style={styles.unreadDot} />}
+            </Pressable>
+          </View>
+        </View>
+
         <Pressable
           onPress={() => router.push('/location')}
           style={styles.locationBtn}
         >
-          <View style={styles.locationPinBox}>
-            <MapPin size={18} color="#FFFFFF" />
-          </View>
-          <View style={styles.locationMeta}>
-            <View style={styles.etaInlineRow}>
-              <Text style={styles.deliverInText}>10–15 mins</Text>
-              <View style={styles.expressTag}>
-                <Zap size={10} color={GPTBazaarTheme.colors.brandDeep} />
-                <Text style={styles.expressTagText}>EXPRESS</Text>
-              </View>
-            </View>
-            <View style={styles.addressLineRow}>
-              <Text numberOfLines={1} style={styles.addressText}>
-                {selectedAddress.label} • {selectedAddress.line1}, {selectedAddress.city}
-              </Text>
-              <ChevronDown size={15} color={GPTBazaarTheme.colors.inkPrimary} />
-            </View>
-          </View>
-        </Pressable>
-
-        <Pressable
-          onPress={() => router.push('/notifications')}
-          style={styles.notifBtn}
-          accessibilityLabel="Notifications"
-        >
-          <Bell size={21} color={GPTBazaarTheme.colors.inkPrimary} />
-          {unreadNotificationsCount > 0 && <View style={styles.unreadDot} />}
+          <MapPin size={14} color={GPTBazaarTheme.colors.brandPrimary} />
+          <Text numberOfLines={1} style={styles.addressText}>
+            {selectedAddress.label} • {selectedAddress.line1}, {selectedAddress.city}
+          </Text>
+          <ChevronDown size={14} color={GPTBazaarTheme.colors.inkPrimary} />
         </Pressable>
       </View>
 
@@ -123,10 +149,19 @@ export default function HomeScreen() {
           />
         }
       >
-        {firestoreError && (
+        {syncError && (
           <View style={styles.errorBanner}>
-            <Text style={styles.errorBannerTitle}>Firebase Sync Notice</Text>
-            <Text style={styles.errorBannerText}>{firestoreError}</Text>
+            <Text style={styles.errorBannerTitle}>Backend Sync Notice</Text>
+            <Text style={styles.errorBannerText}>{syncError}</Text>
+          </View>
+        )}
+
+        {!appConfig.isStoreOpen && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorBannerTitle}>{appConfig.storeName} is currently closed</Text>
+            <Text style={styles.errorBannerText}>
+              You can browse products now; ordering will resume once the admin opens the store.
+            </Text>
           </View>
         )}
 
@@ -143,11 +178,11 @@ export default function HomeScreen() {
         >
           <View style={styles.heroLeft}>
             <View style={styles.heroOfferBadge}>
-              <Text style={styles.heroOfferText}>UP TO 40% OFF</Text>
+              <Text style={styles.heroOfferText}>{appConfig.heroBadge || 'UP TO 40% OFF'}</Text>
             </View>
-            <Text style={styles.heroHeadline}>Fresh picks, better prices</Text>
+            <Text style={styles.heroHeadline}>{appConfig.heroTitle || 'Fresh picks, better prices'}</Text>
             <Text style={styles.heroSub}>
-              Handpicked farm produce & daily essentials delivered in minutes.
+              {appConfig.heroSubtitle || 'Handpicked farm produce & daily essentials delivered in minutes.'}
             </Text>
             <View style={styles.heroCtaBtn}>
               <Text style={styles.heroCtaText}>Shop Fresh →</Text>
@@ -173,7 +208,7 @@ export default function HomeScreen() {
         {loading && activeCategories.length === 0 ? (
           <View style={styles.loaderBox}>
             <ActivityIndicator size="small" color={GPTBazaarTheme.colors.brandPrimary} />
-            <Text style={styles.loaderText}>Syncing live catalog from Firestore…</Text>
+            <Text style={styles.loaderText}>Syncing live catalog from backend…</Text>
           </View>
         ) : (
           <View style={styles.catGrid}>
@@ -193,6 +228,7 @@ export default function HomeScreen() {
                     imageUrl={cat.imageUrl}
                     artworkKey={cat.artworkKey}
                     size={48}
+                    resizeMode="cover"
                     style={styles.catMediaInner}
                   />
                 </View>
@@ -218,6 +254,7 @@ export default function HomeScreen() {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
+              style={styles.horizontalScroll}
               contentContainerStyle={styles.horizontalCarousel}
             >
               {popularProducts.map((product) => {
@@ -226,7 +263,7 @@ export default function HomeScreen() {
                   <ProductCard
                     key={product.id}
                     product={product}
-                    compactWidth={164}
+                    compactWidth={146}
                     qtyInCart={getCartQty(product.id, defaultVarId)}
                     isWishlisted={wishlistIds.includes(product.id)}
                     onPress={() => router.push(`/product/${product.id}`)}
@@ -250,9 +287,12 @@ export default function HomeScreen() {
             <Sparkles size={20} color={GPTBazaarTheme.colors.brandDeep} />
           </View>
           <View style={styles.flex}>
-            <Text style={styles.dealTitle}>Free delivery on orders above ₹149</Text>
+            <Text style={styles.dealTitle}>
+              {appConfig.dealBannerTitle || 'Free delivery on orders above ₹149'}
+            </Text>
             <Text style={styles.dealSub}>
-              Use code GROCER10 in cart for instant savings on daily essentials.
+              {appConfig.dealBannerSubtitle ||
+                'Use code GROCER10 in cart for instant savings on daily essentials.'}
             </Text>
           </View>
           <ChevronRight size={18} color={GPTBazaarTheme.colors.brandPrimary} />
@@ -282,6 +322,7 @@ export default function HomeScreen() {
                 <View key={product.id} style={styles.productGridItem}>
                   <ProductCard
                     product={product}
+                    dense
                     qtyInCart={getCartQty(product.id, defaultVarId)}
                     isWishlisted={wishlistIds.includes(product.id)}
                     onPress={() => router.push(`/product/${product.id}`)}
@@ -329,34 +370,55 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: GPTBazaarTheme.colors.canvas },
   flex: { flex: 1 },
   topHeader: {
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 6,
+    backgroundColor: GPTBazaarTheme.colors.surface,
+    gap: 6,
+  },
+  brandHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingTop: 6,
-    paddingBottom: 8,
-    backgroundColor: GPTBazaarTheme.colors.surface,
   },
-  locationBtn: {
-    flex: 1,
+  brandLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginRight: 8,
   },
-  locationPinBox: {
+  appIcon: {
     width: 38,
     height: 38,
-    borderRadius: 11,
-    backgroundColor: GPTBazaarTheme.colors.brandPrimary,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: GPTBazaarTheme.colors.borderSubtle,
   },
-  locationMeta: { flex: 1 },
-  etaInlineRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  deliverInText: {
+  brandNameRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  brandTextDark: {
     fontSize: 15,
     fontWeight: '800',
+    color: GPTBazaarTheme.colors.brandDeep,
+    letterSpacing: -0.2,
+  },
+  brandTextGreen: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: GPTBazaarTheme.colors.brandPrimary,
+    letterSpacing: -0.2,
+  },
+  locationBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 2,
+  },
+  etaInlineRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 1 },
+  deliverInText: {
+    fontSize: 12,
+    fontWeight: '700',
     color: GPTBazaarTheme.colors.inkPrimary,
   },
   expressTag: {
@@ -374,21 +436,20 @@ const styles = StyleSheet.create({
     color: GPTBazaarTheme.colors.brandDeep,
     letterSpacing: 0.3,
   },
-  addressLineRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    marginTop: 1,
-  },
   addressText: {
-    fontSize: 12.5,
+    fontSize: 12,
     color: GPTBazaarTheme.colors.inkMuted,
     flexShrink: 1,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   notifBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 11,
     backgroundColor: GPTBazaarTheme.colors.canvas,
     borderWidth: 1,
     borderColor: GPTBazaarTheme.colors.borderSubtle,
@@ -452,12 +513,12 @@ const styles = StyleSheet.create({
   },
   heroBanner: {
     backgroundColor: GPTBazaarTheme.colors.brandDeep,
-    borderRadius: 20,
-    padding: 16,
+    borderRadius: 18,
+    padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 18,
+    marginBottom: 14,
     overflow: 'hidden',
   },
   heroLeft: { flex: 1, paddingRight: 8 },
@@ -540,7 +601,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginHorizontal: -4,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   catCell: {
     width: '25%',
@@ -553,7 +614,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 6,
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#E8EFEA',
   },
@@ -566,9 +627,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 14,
   },
-  horizontalCarousel: {
-    paddingRight: 10,
+  horizontalScroll: {
     marginBottom: 14,
+  },
+  horizontalCarousel: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingRight: 4,
+    paddingVertical: 2,
   },
   dealStrip: {
     flexDirection: 'row',
@@ -577,9 +643,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF9E7',
     borderWidth: 1,
     borderColor: '#FDE68A',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 18,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 14,
   },
   dealIconBox: {
     width: 40,
@@ -617,10 +683,11 @@ const styles = StyleSheet.create({
   productGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -4,
+    marginHorizontal: -3,
   },
   productGridItem: {
-    width: '50%',
+    width: '33.3333%',
+    padding: 3,
   },
   emptyCard: {
     backgroundColor: GPTBazaarTheme.colors.surface,

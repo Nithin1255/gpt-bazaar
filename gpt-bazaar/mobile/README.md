@@ -1,51 +1,34 @@
 # GPT Bazaar — Mobile App (React Native / Expo for Android & iOS)
 
-Standalone 16-screen instant grocery delivery mobile app for **Android** and **iOS** built with **Expo**, **Expo Router**, **React Native**, **TypeScript**, **AsyncStorage**, and live **Firebase Firestore** sync. It has **zero dependencies** on any parent folder.
+Standalone Expo React Native mobile application built with **Expo SDK 52**, **Expo Router**, **TypeScript**, and **AsyncStorage**. Fetches products, categories, storefront configuration, coupons, notifications, and orders from **Supabase PostgreSQL & Storage** through the **Python FastAPI backend** (`gpt-bazaar/backend`).
 
-## Features Included
-
-- **16 Complete Screens + Profile Hub**: Splash, Welcome/Quick Start, Location Picker, Home, Search, Categories Directory, Category Product Listing, Product Details (PDP), Cart with coupons (`GROCER10`), Checkout, Payment Methods, Live 4-Stage Order Tracker, My Orders with Reorder & Rating, Wishlist, Saved Addresses, Notifications, and Profile Hub.
-- **Direct Real-Time Firestore Sync**: All 16 screens read and write directly to Firebase Firestore (`categories`, `products`, `orders`, `coupons`, `notifications`)—no separate hosted backend server is required to run the app.
-- **Offline Device Persistence**: Cart, wishlist, saved delivery addresses, active hub, and recent searches persist locally via `AsyncStorage`.
+It has **zero local dependencies** on `web/`, `backend/`, or any parent directory, and is ready for **Expo EAS** builds.
 
 ## 1. Local Development
 
 ```bash
 cp .env.example .env
-# Paste your EXPO_PUBLIC_FIREBASE_* values into .env
+# Set EXPO_PUBLIC_API_BASE_URL (use your Render HTTPS URL or LAN IP e.g. http://192.168.1.10:8000 for physical devices)
 npm install
 npx expo start
 ```
 
 ## 2. Configure EAS Environment Variables (`production`)
 
-EAS Project ID is already linked in `app.json` (`68a18483-1fc5-43b8-8686-54d7e944d32e`). Run these commands inside `gpt-bazaar/mobile/` before building:
+EAS Project ID is configured in `app.json` (`68a18483-1fc5-43b8-8686-54d7e944d32e`). Inside `gpt-bazaar/mobile/`, set your Render FastAPI backend URL:
 
 ```bash
 npm install -g eas-cli
 eas login
 
-eas env:create --environment production --name EXPO_PUBLIC_FIREBASE_API_KEY --value "YOUR_KEY" --visibility plaintext
-eas env:create --environment production --name EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN --value "YOUR_AUTH_DOMAIN" --visibility plaintext
-eas env:create --environment production --name EXPO_PUBLIC_FIREBASE_PROJECT_ID --value "YOUR_PROJECT_ID" --visibility plaintext
-eas env:create --environment production --name EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET --value "YOUR_BUCKET" --visibility plaintext
-eas env:create --environment production --name EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID --value "YOUR_SENDER_ID" --visibility plaintext
-eas env:create --environment production --name EXPO_PUBLIC_FIREBASE_APP_ID --value "YOUR_APP_ID" --visibility plaintext
-eas env:create --environment production --name EXPO_PUBLIC_FIRESTORE_DATABASE_ID --value "YOUR_DB_ID" --visibility plaintext
-eas env:create --environment production --name EXPO_PUBLIC_API_BASE_URL --value "http://localhost:8000" --visibility plaintext
-eas env:create --environment production --name EXPO_PUBLIC_ALLOW_HTTP --value "true" --visibility plaintext
+eas env:create --environment production --name EXPO_PUBLIC_API_BASE_URL --value "https://your-render-backend.onrender.com" --visibility plaintext
+eas env:create --environment production --name EXPO_PUBLIC_ALLOW_HTTP --value "false" --visibility plaintext
 ```
 
-## 3. Build Production Android `.apk` & iOS `.ipa`
+## 3. Build Production Android `.apk` / `.aab` & iOS `.ipa`
 
 ```bash
-# Signed Production Android .apk (directly installable on any Android phone)
 npm run build:android:prod-apk
-# (or: eas build --platform android --profile production)
-
-# Google Play Store Android .aab (for Play Console upload)
 npm run build:android:aab
-
-# iOS Production .ipa (requires Apple Developer account)
 npm run build:ios:ipa
 ```

@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   },
   sortBtnTextActive: { color: GPTBazaarTheme.colors.brandPrimary },
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 },
-  gridItem: { width: '50%' },
+  gridItem: { width: '50%', padding: 4 },
   emptyCard: {
     backgroundColor: GPTBazaarTheme.colors.surface,
     borderRadius: 16,

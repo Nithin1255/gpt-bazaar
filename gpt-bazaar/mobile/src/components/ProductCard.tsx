@@ -16,6 +16,7 @@ export function ProductCard({
   onDecrement,
   onToggleWishlist,
   compactWidth,
+  dense = false,
 }: {
   product: Product;
   qtyInCart: number;
@@ -26,6 +27,7 @@ export function ProductCard({
   onDecrement: () => void;
   onToggleWishlist: () => void;
   compactWidth?: number;
+  dense?: boolean;
 }) {
   const variant =
     product.variants.find((v) => v.id === product.defaultVariantId) || product.variants[0];
@@ -38,79 +40,91 @@ export function ProductCard({
       onPress={onPress}
       style={[
         styles.card,
-        compactWidth ? { width: compactWidth, flex: 0 } : { flex: 1 },
+        dense && styles.cardDense,
+        compactWidth ? { width: compactWidth, flexShrink: 0, flexGrow: 0 } : styles.gridCard,
       ]}
     >
-      <View style={styles.topRow}>
-        {variant.discountPercent > 0 ? (
-          <View style={styles.discountBadge}>
-            <Text style={styles.discountText}>{variant.discountPercent}% OFF</Text>
+      <View style={[styles.mediaBox, dense && styles.mediaBoxDense]}>
+        <ProductMedia
+          imageUrl={product.imageUrl}
+          artworkKey={product.artworkKey}
+          size={dense ? 46 : 58}
+          style={styles.mediaInner}
+        />
+
+        {variant.discountPercent > 0 && (
+          <View style={[styles.discountBadge, dense && styles.discountBadgeDense]}>
+            <Text style={[styles.discountText, dense && styles.discountTextDense]}>
+              {variant.discountPercent}% OFF
+            </Text>
           </View>
-        ) : (
-          <View />
         )}
+
         <Pressable
           onPress={onToggleWishlist}
-          hitSlop={10}
+          hitSlop={8}
           accessibilityLabel="Toggle wishlist"
-          style={styles.heartBtn}
+          style={[styles.heartBtn, dense && styles.heartBtnDense]}
         >
           <Heart
-            size={17}
-            color={isWishlisted ? GPTBazaarTheme.colors.offerCrimson : '#94A3B8'}
+            size={dense ? 13 : 15}
+            color={isWishlisted ? GPTBazaarTheme.colors.offerCrimson : '#64748B'}
             fill={isWishlisted ? GPTBazaarTheme.colors.offerCrimson : 'none'}
           />
         </Pressable>
       </View>
 
-      <View style={styles.mediaBox}>
-        <ProductMedia
-          imageUrl={product.imageUrl}
-          artworkKey={product.artworkKey}
-          size={68}
-          style={styles.mediaInner}
-        />
-      </View>
-
-      <View style={styles.metaRow}>
+      <View style={[styles.metaRow, dense && styles.metaRowDense]}>
         <DietaryDot type={product.dietaryType} />
-        <Text numberOfLines={1} style={styles.weight}>
+        <Text numberOfLines={1} style={[styles.weight, dense && styles.weightDense]}>
           {variant.label}
         </Text>
       </View>
 
-      <Text numberOfLines={2} style={styles.title}>
+      <Text numberOfLines={2} style={[styles.title, dense && styles.titleDense]}>
         {product.name}
       </Text>
 
-      <View style={styles.footer}>
-        <View>
-          <Text style={styles.price}>₹{variant.price}</Text>
-          {variant.mrp > variant.price && <Text style={styles.mrp}>₹{variant.mrp}</Text>}
+      <View style={[styles.footer, dense && styles.footerDense]}>
+        <View style={styles.priceWrap}>
+          <Text style={[styles.price, dense && styles.priceDense]}>₹{variant.price}</Text>
+          {variant.mrp > variant.price && (
+            <Text style={[styles.mrp, dense && styles.mrpDense]}>₹{variant.mrp}</Text>
+          )}
         </View>
 
         {isOutOfStock ? (
-          <View style={styles.soldOutPill}>
-            <Text style={styles.soldOutText}>Sold out</Text>
+          <View style={[styles.soldOutPill, dense && styles.soldOutPillDense]}>
+            <Text style={[styles.soldOutText, dense && styles.soldOutTextDense]}>Sold out</Text>
           </View>
         ) : qtyInCart > 0 ? (
-          <View style={styles.stepper}>
-            <Pressable onPress={onDecrement} hitSlop={8} style={styles.stepBtn}>
-              <Text style={styles.stepBtnText}>−</Text>
+          <View style={[styles.stepper, dense && styles.stepperDense]}>
+            <Pressable
+              onPress={onDecrement}
+              hitSlop={8}
+              style={[styles.stepBtn, dense && styles.stepBtnDense]}
+            >
+              <Text style={[styles.stepBtnText, dense && styles.stepBtnTextDense]}>−</Text>
             </Pressable>
-            <Text style={styles.stepQty}>{qtyInCart}</Text>
+            <Text style={[styles.stepQty, dense && styles.stepQtyDense]}>{qtyInCart}</Text>
             <Pressable
               onPress={onIncrement}
               disabled={qtyInCart >= variant.stock}
               hitSlop={8}
-              style={[styles.stepBtn, qtyInCart >= variant.stock && styles.stepBtnDisabled]}
+              style={[
+                styles.stepBtn,
+                dense && styles.stepBtnDense,
+                qtyInCart >= variant.stock && styles.stepBtnDisabled,
+              ]}
             >
-              <Text style={styles.stepBtnText}>+</Text>
+              <Text style={[styles.stepBtnText, dense && styles.stepBtnTextDense]}>+</Text>
             </Pressable>
           </View>
         ) : (
-          <Pressable onPress={onAdd} style={styles.addBtn}>
-            <Text style={styles.addBtnText}>Add +</Text>
+          <Pressable onPress={onAdd} style={[styles.addBtn, dense && styles.addBtnDense]}>
+            <Text style={[styles.addBtnText, dense && styles.addBtnTextDense]}>
+              {dense ? 'Add' : 'Add +'}
+            </Text>
           </Pressable>
         )}
       </View>
@@ -124,106 +138,192 @@ const styles = StyleSheet.create({
     borderColor: GPTBazaarTheme.colors.borderSubtle,
     borderWidth: 1,
     borderRadius: GPTBazaarTheme.radii.lg,
-    padding: 10,
-    margin: 4,
+    padding: 8,
   },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 24,
+  cardDense: {
+    borderRadius: 12,
+    padding: 6,
   },
-  discountBadge: {
-    backgroundColor: GPTBazaarTheme.colors.offerCrimson,
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  discountText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-    fontVariant: ['tabular-nums'],
-  },
-  heartBtn: {
-    width: 30,
-    height: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
+  gridCard: {
+    width: '100%',
   },
   mediaBox: {
-    height: 92,
+    position: 'relative',
+    height: 84,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F8FAF8',
-    borderRadius: 12,
-    marginTop: 4,
-    marginBottom: 8,
+    borderRadius: 10,
     padding: 6,
+    overflow: 'hidden',
+  },
+  mediaBoxDense: {
+    height: 68,
+    borderRadius: 8,
+    padding: 4,
   },
   mediaInner: { width: '100%', height: '100%' },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  weight: { fontSize: 11, color: GPTBazaarTheme.colors.inkMuted, flexShrink: 1 },
+  discountBadge: {
+    position: 'absolute',
+    top: 5,
+    left: 5,
+    backgroundColor: GPTBazaarTheme.colors.offerCrimson,
+    borderRadius: 5,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  discountBadgeDense: {
+    top: 4,
+    left: 4,
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+  discountText: {
+    color: '#FFFFFF',
+    fontSize: 9.5,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  discountTextDense: {
+    fontSize: 8.5,
+  },
+  heartBtn: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heartBtnDense: {
+    top: 3,
+    right: 3,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+  },
+  metaRow: {
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  metaRowDense: {
+    marginTop: 4,
+    gap: 4,
+  },
+  weight: { fontSize: 10.5, color: GPTBazaarTheme.colors.inkMuted, flexShrink: 1 },
+  weightDense: { fontSize: 9.5 },
   title: {
-    fontSize: 13.5,
+    fontSize: 12.5,
     fontWeight: '700',
     color: GPTBazaarTheme.colors.inkPrimary,
     marginTop: 3,
-    minHeight: 36,
-    lineHeight: 18,
+    minHeight: 32,
+    lineHeight: 16,
+  },
+  titleDense: {
+    fontSize: 11.5,
+    minHeight: 28,
+    lineHeight: 14,
   },
   footer: {
-    marginTop: 8,
+    marginTop: 6,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 4,
+  },
+  footerDense: {
+    marginTop: 5,
+    gap: 2,
+  },
+  priceWrap: {
+    flexShrink: 1,
   },
   price: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
     color: GPTBazaarTheme.colors.inkPrimary,
     fontVariant: ['tabular-nums'],
+    lineHeight: 17,
+  },
+  priceDense: {
+    fontSize: 12.5,
+    lineHeight: 15,
   },
   mrp: {
-    fontSize: 11,
+    fontSize: 10.5,
     color: '#94A3B8',
     textDecorationLine: 'line-through',
     fontVariant: ['tabular-nums'],
+    lineHeight: 13,
+  },
+  mrpDense: {
+    fontSize: 9.5,
+    lineHeight: 11,
   },
   addBtn: {
     backgroundColor: GPTBazaarTheme.colors.brandPrimary,
-    paddingHorizontal: 12,
-    height: 34,
+    paddingHorizontal: 10,
+    height: 30,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addBtnText: { color: '#FFFFFF', fontSize: 12.5, fontWeight: '700' },
+  addBtnDense: {
+    paddingHorizontal: 8,
+    height: 26,
+    borderRadius: 6,
+  },
+  addBtnText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+  addBtnTextDense: { fontSize: 11 },
   stepper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: GPTBazaarTheme.colors.brandPrimary,
     borderRadius: 8,
-    paddingHorizontal: 4,
-    height: 34,
+    paddingHorizontal: 3,
+    height: 30,
   },
-  stepBtn: { width: 26, height: 34, alignItems: 'center', justifyContent: 'center' },
+  stepperDense: {
+    borderRadius: 6,
+    paddingHorizontal: 2,
+    height: 26,
+  },
+  stepBtn: { width: 24, height: 30, alignItems: 'center', justifyContent: 'center' },
+  stepBtnDense: { width: 19, height: 26 },
   stepBtnDisabled: { opacity: 0.45 },
-  stepBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  stepBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  stepBtnTextDense: { fontSize: 13 },
   stepQty: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '800',
-    marginHorizontal: 3,
+    marginHorizontal: 2,
     fontVariant: ['tabular-nums'],
+  },
+  stepQtyDense: {
+    fontSize: 11,
+    marginHorizontal: 1,
   },
   soldOutPill: {
     backgroundColor: '#F1F5F9',
-    paddingHorizontal: 8,
-    height: 30,
+    paddingHorizontal: 7,
+    height: 28,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  soldOutText: { fontSize: 11, fontWeight: '700', color: '#64748B' },
+  soldOutPillDense: {
+    paddingHorizontal: 5,
+    height: 24,
+    borderRadius: 6,
+  },
+  soldOutText: { fontSize: 10.5, fontWeight: '700', color: '#64748B' },
+  soldOutTextDense: { fontSize: 9.5 },
 });

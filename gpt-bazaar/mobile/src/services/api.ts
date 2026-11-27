@@ -4,8 +4,13 @@ export const API_BASE_URL =
 export const ALLOW_HTTP =
   (process.env.EXPO_PUBLIC_ALLOW_HTTP || 'true').toLowerCase() === 'true';
 
+export function getWebSocketUrl(room: string): string {
+  const wsBase = API_BASE_URL.replace(/^https:\/\//i, 'wss://').replace(/^http:\/\//i, 'ws://');
+  return `${wsBase}/ws/live/${encodeURIComponent(room)}`;
+}
+
 /**
- * Helper for optional Phase 2+ FastAPI backend endpoints.
+ * Authoritative FastAPI backend client (backed by Firebase Firestore & Storage).
  * Enforces HTTPS unless EXPO_PUBLIC_ALLOW_HTTP="true" is explicitly enabled.
  */
 export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {

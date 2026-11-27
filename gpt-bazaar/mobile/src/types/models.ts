@@ -166,3 +166,21 @@ export interface CartItem {
   qty: number;
   selected: boolean;
 }
+
+export interface AppConfig {
+  id: string;
+  storeName: string;
+  hubCity: string;
+  pincode: string;
+  deliveryEtaText: string;
+  isStoreOpen: boolean;
+  heroBadge: string;
+  heroTitle: string;
+  heroSubtitle: string;
+  dealBannerTitle: string;
+  dealBannerSubtitle: string;
+  freeDeliveryThreshold: number;
+  deliveryFee: number;
+  packagingFee: number;
+  updatedAt?: string;
+}

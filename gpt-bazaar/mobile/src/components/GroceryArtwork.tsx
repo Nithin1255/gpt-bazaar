@@ -313,11 +313,13 @@ export function ProductMedia({
   imageUrl,
   artworkKey,
   size = 64,
+  resizeMode = 'contain',
   style,
 }: {
   imageUrl?: string;
   artworkKey?: string;
   size?: number;
+  resizeMode?: 'contain' | 'cover';
   style?: StyleProp<ViewStyle>;
 }) {
   const [imgError, setImgError] = useState(false);
@@ -334,7 +336,7 @@ export function ProductMedia({
         <Image
           source={{ uri: trimmed }}
           style={styles.remoteImage}
-          resizeMode="contain"
+          resizeMode={resizeMode}
           onError={() => setImgError(true)}
         />
       </View>

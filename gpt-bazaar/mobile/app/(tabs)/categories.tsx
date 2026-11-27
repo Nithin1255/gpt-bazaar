@@ -76,27 +76,26 @@ export default function CategoriesDirectoryScreen() {
                   onPress={() => router.push(`/category/${cat.id}`)}
                   style={styles.gridCell}
                 >
-                  <View style={styles.catCard}>
-                    <View
-                      style={[
-                        styles.mediaFrame,
-                        { backgroundColor: cat.bgTint || GPTBazaarTheme.colors.surfaceMint },
-                      ]}
-                    >
-                      <ProductMedia
-                        imageUrl={cat.imageUrl}
-                        artworkKey={cat.artworkKey}
-                        size={56}
-                        style={styles.mediaInner}
-                      />
-                    </View>
-                    <Text numberOfLines={2} style={styles.catTitle}>
-                      {cat.name}
-                    </Text>
-                    <Text style={styles.catCount}>
-                      {itemCount} {itemCount === 1 ? 'item' : 'items'}
-                    </Text>
+                  <View
+                    style={[
+                      styles.mediaFrame,
+                      { backgroundColor: cat.bgTint || GPTBazaarTheme.colors.surfaceMint },
+                    ]}
+                  >
+                    <ProductMedia
+                      imageUrl={cat.imageUrl}
+                      artworkKey={cat.artworkKey}
+                      size={56}
+                      resizeMode="cover"
+                      style={styles.mediaInner}
+                    />
                   </View>
+                  <Text numberOfLines={2} style={styles.catTitle}>
+                    {cat.name}
+                  </Text>
+                  <Text style={styles.catCount}>
+                    {itemCount} {itemCount === 1 ? 'item' : 'items'}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -157,20 +156,16 @@ const styles = StyleSheet.create({
   gridCell: {
     width: '33.3333%',
     padding: 4,
-  },
-  catCard: {
-    backgroundColor: GPTBazaarTheme.colors.surface,
-    borderRadius: 16,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: GPTBazaarTheme.colors.borderSubtle,
+    marginBottom: 8,
     alignItems: 'center',
   },
   mediaFrame: {
     width: '100%',
     aspectRatio: 1,
-    borderRadius: 12,
-    padding: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E8EFEA',
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },

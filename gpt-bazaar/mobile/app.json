@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "GPT Bazaar",
-    "slug": "gpt-bazaar",
+    "slug": "blinkit",
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "gptbazaar",
@@ -41,7 +41,8 @@
             "usesCleartextTraffic": true
           }
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "extra": {
       "router": {
@@ -53,6 +54,7 @@
     },
     "experiments": {
       "typedRoutes": false
-    }
+    },
+    "owner": "nithin4555s-team"
   }
 }

@@ -8,18 +8,9 @@ import React, {
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
-import {
-  collection,
-  doc,
-  onSnapshot,
-  query,
-  setDoc,
-  updateDoc,
-  where,
-} from 'firebase/firestore';
-import { apiRequest } from '../services/api';
-import { db, isFirebaseConfigured, testFirestoreConnection } from '../services/firebase';
+import { API_BASE_URL, apiRequest, getWebSocketUrl } from '../services/api';
 import type {
+  AppConfig,
   CartItem,
   Category,
   Coupon,
@@ -31,15 +22,27 @@ import type {
   Product,
 } from '../types/models';
 
-export const MOBILE_DATA_SOURCE: 'firestore' | 'api' =
-  (process.env.EXPO_PUBLIC_DATA_SOURCE || 'firestore').toLowerCase() === 'api'
-    ? 'api'
-    : 'firestore';
-
 export const DEFAULT_STORE_ID = 'store-chittoor-hub-1';
 export const FREE_DELIVERY_THRESHOLD = 149;
 export const STANDARD_DELIVERY_FEE = 25;
 export const PACKAGING_FEE = 5;
+
+const DEFAULT_APP_CONFIG: AppConfig = {
+  id: 'mobile',
+  storeName: 'GPT Bazaar Chittoor Hub',
+  hubCity: 'Chittoor',
+  pincode: '517584',
+  deliveryEtaText: '10–15 mins',
+  isStoreOpen: true,
+  heroBadge: 'UP TO 40% OFF',
+  heroTitle: 'Fresh picks, better prices',
+  heroSubtitle: 'Handpicked farm produce & daily essentials delivered in minutes.',
+  dealBannerTitle: 'Free delivery on orders above ₹149',
+  dealBannerSubtitle: 'Use code GROCER10 in cart for instant savings on daily essentials.',
+  freeDeliveryThreshold: FREE_DELIVERY_THRESHOLD,
+  deliveryFee: STANDARD_DELIVERY_FEE,
+  packagingFee: PACKAGING_FEE,
+};
 
 const STORAGE_KEYS = {
   cart: 'gptbazaar_cart_v1',
@@ -78,15 +81,6 @@ const DEFAULT_ADDRESSES: DeliveryAddress[] = [
 
 const DEFAULT_RECENT_SEARCHES = ['Milk', 'Eggs', 'Tomato', 'Rice', 'Banana'];
 
-function formatNowTime(): string {
-  const now = new Date();
-  const hours = now.getHours();
-  const minutes = now.getMinutes().toString().padStart(2, '0');
-  const ampm = hours >= 12 ? 'PM' : 'AM';
-  const h12 = hours % 12 || 12;
-  return `Today, ${h12}:${minutes} ${ampm}`;
-}
-
 function triggerLightHaptic() {
   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
 }
@@ -111,6 +105,7 @@ export interface CartSummary {
 }
 
 interface MobileStoreContextValue {
+  appConfig: AppConfig;
   categories: Category[];
   products: Product[];
   orders: Order[];
@@ -120,7 +115,7 @@ interface MobileStoreContextValue {
   refreshing: boolean;
   refreshCatalog: () => Promise<void>;
   hydrated: boolean;
-  firestoreError: string | null;
+  syncError: string | null;
 
   hasCompletedOnboarding: boolean;
   completeOnboarding: (phone?: string) => void;
@@ -169,6 +164,7 @@ interface MobileStoreContextValue {
 const MobileStoreContext = createContext<MobileStoreContextValue | null>(null);
 
 export function MobileStoreProvider({ children }: { children: React.ReactNode }) {
+  const [appConfig, setAppConfig] = useState<AppConfig>(DEFAULT_APP_CONFIG);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -177,7 +173,7 @@ export function MobileStoreProvider({ children }: { children: React.ReactNode })
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hydrated, setHydrated] = useState(false);
-  const [firestoreError, setFirestoreError] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [customerName, setCustomerName] = useState('Nithin Kumar');
@@ -199,23 +195,29 @@ export function MobileStoreProvider({ children }: { children: React.ReactNode })
         if (!active) return;
         const map = Object.fromEntries(pairs);
 
-        if (map[STORAGE_KEYS.cart]) setCart(JSON.parse(map[STORAGE_KEYS.cart]));
-        if (map[STORAGE_KEYS.wishlist]) setWishlistIds(JSON.parse(map[STORAGE_KEYS.wishlist]));
-        if (map[STORAGE_KEYS.addresses]) {
-          const parsed = JSON.parse(map[STORAGE_KEYS.addresses]) as DeliveryAddress[];
+        const rawCart = map[STORAGE_KEYS.cart];
+        if (rawCart) setCart(JSON.parse(rawCart));
+        const rawWishlist = map[STORAGE_KEYS.wishlist];
+        if (rawWishlist) setWishlistIds(JSON.parse(rawWishlist));
+        const rawAddresses = map[STORAGE_KEYS.addresses];
+        if (rawAddresses) {
+          const parsed = JSON.parse(rawAddresses) as DeliveryAddress[];
           if (parsed.length > 0) setAddresses(parsed);
         }
-        if (map[STORAGE_KEYS.selectedAddressId]) {
-          setSelectedAddressId(map[STORAGE_KEYS.selectedAddressId]);
+        const rawSelectedAddr = map[STORAGE_KEYS.selectedAddressId];
+        if (rawSelectedAddr) {
+          setSelectedAddressId(rawSelectedAddr);
         }
-        if (map[STORAGE_KEYS.recentSearches]) {
-          setRecentSearches(JSON.parse(map[STORAGE_KEYS.recentSearches]));
+        const rawSearches = map[STORAGE_KEYS.recentSearches];
+        if (rawSearches) {
+          setRecentSearches(JSON.parse(rawSearches));
         }
         if (map[STORAGE_KEYS.onboarded] === 'true') {
           setHasCompletedOnboarding(true);
         }
-        if (map[STORAGE_KEYS.customerProfile]) {
-          const prof = JSON.parse(map[STORAGE_KEYS.customerProfile]) as {
+        const rawProfile = map[STORAGE_KEYS.customerProfile];
+        if (rawProfile) {
+          const prof = JSON.parse(rawProfile) as {
             name?: string;
             phone?: string;
           };
@@ -269,25 +271,38 @@ export function MobileStoreProvider({ children }: { children: React.ReactNode })
       setLoading(true);
     }
     try {
-      const [catRes, prodRes, ordRes] = await Promise.all([
-        apiRequest<{ items: Category[] }>('/api/v1/categories'),
-        apiRequest<{ items: Product[] }>('/api/v1/products?active_only=true'),
+      const [storefront, ordRes, notifRes] = await Promise.all([
+        apiRequest<{
+          appConfig?: AppConfig;
+          categories: Category[];
+          products: Product[];
+          coupons: Coupon[];
+        }>('/api/v1/storefront'),
         apiRequest<{ items: Order[] }>('/api/v1/orders').catch(() => ({ items: [] as Order[] })),
+        apiRequest<{ items: NotificationItem[] }>('/api/v1/notifications').catch(() => ({
+          items: [] as NotificationItem[],
+        })),
       ]);
-      const sortedCategories = [...(catRes.items || [])].sort(
+
+      if (storefront.appConfig) {
+        setAppConfig({ ...DEFAULT_APP_CONFIG, ...storefront.appConfig });
+      }
+      const sortedCategories = [...(storefront.categories || [])].sort(
         (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
       );
       const sortedOrders = [...(ordRes.items || [])].sort((a, b) =>
         (b.createdAt || '').localeCompare(a.createdAt || '')
       );
       setCategories(sortedCategories);
-      setProducts(prodRes.items || []);
+      setProducts(storefront.products || []);
+      setCoupons(storefront.coupons || []);
       setOrders(sortedOrders);
-      setFirestoreError(null);
+      setNotifications(notifRes.items || []);
+      setSyncError(null);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unable to reach FastAPI backend';
-      setFirestoreError(
-        `${msg}. Verify EXPO_PUBLIC_API_BASE_URL is reachable from your device.`
+      setSyncError(
+        `${msg}. Verify EXPO_PUBLIC_API_BASE_URL (${API_BASE_URL}) is reachable from your device.`
       );
     } finally {
       setLoading(false);
@@ -296,126 +311,49 @@ export function MobileStoreProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const refreshCatalog = useCallback(async () => {
-    if (MOBILE_DATA_SOURCE === 'api') {
-      await loadFromApi(true);
-      return;
-    }
-    setRefreshing(true);
-    try {
-      if (!isFirebaseConfigured) {
-        setFirestoreError(
-          'Firebase .env not configured. Copy .env.example to .env and fill EXPO_PUBLIC_FIREBASE_* and EXPO_PUBLIC_FIRESTORE_DATABASE_ID.'
-        );
-      } else {
-        const res = await testFirestoreConnection();
-        if (!res.ok && res.message) {
-          setFirestoreError(res.message);
-        } else {
-          setFirestoreError(null);
-        }
-      }
-    } finally {
-      setRefreshing(false);
-    }
+    await loadFromApi(true);
   }, [loadFromApi]);
 
-  // Live catalog subscription (Firestore real-time on Starter Tier, or FastAPI REST when DATA_SOURCE=api)
+  // Initial load + live WebSocket sync with FastAPI backend
   useEffect(() => {
-    if (MOBILE_DATA_SOURCE === 'api') {
-      void loadFromApi(false);
-      return;
+    void loadFromApi(false);
+
+    let catalogWs: WebSocket | null = null;
+    let adminWs: WebSocket | null = null;
+    try {
+      catalogWs = new WebSocket(getWebSocketUrl('catalog'));
+      catalogWs.onmessage = () => {
+        void loadFromApi(true);
+      };
+      adminWs = new WebSocket(getWebSocketUrl('admin'));
+      adminWs.onmessage = () => {
+        void loadFromApi(true);
+      };
+    } catch {
+      // Pull-to-refresh remains available if WS cannot connect
     }
-
-    if (!isFirebaseConfigured) {
-      setFirestoreError(
-        'Firebase .env not configured. Copy .env.example to .env and fill EXPO_PUBLIC_FIREBASE_* and EXPO_PUBLIC_FIRESTORE_DATABASE_ID.'
-      );
-      setLoading(false);
-      return;
-    }
-
-    void testFirestoreConnection().then((res) => {
-      if (!res.ok && res.message) {
-        setFirestoreError(res.message);
-      }
-    });
-
-    const unsubCategories = onSnapshot(
-      query(collection(db, 'categories'), where('schemaVersion', '==', 1)),
-      (snap) => {
-        const list = snap.docs
-          .map((d) => ({ id: d.id, ...(d.data() as Omit<Category, 'id'>) }))
-          .sort((a, b) => a.sortOrder - b.sortOrder);
-        setCategories(list);
-        setFirestoreError(null);
-      },
-      (err) => setFirestoreError(err.message)
-    );
-
-    const unsubProducts = onSnapshot(
-      query(collection(db, 'products'), where('schemaVersion', '==', 1)),
-      (snap) => {
-        const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Product, 'id'>) }));
-        setProducts(list);
-        setLoading(false);
-      },
-      (err) => {
-        setFirestoreError(err.message);
-        setLoading(false);
-      }
-    );
-
-    const unsubOrders = onSnapshot(
-      query(collection(db, 'orders'), where('schemaVersion', '==', 1)),
-      (snap) => {
-        const list = snap.docs
-          .map((d) => ({ id: d.id, ...(d.data() as Omit<Order, 'id'>) }))
-          .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-        setOrders(list);
-      },
-      (err) => setFirestoreError(err.message)
-    );
-
-    const unsubCoupons = onSnapshot(
-      query(collection(db, 'coupons'), where('schemaVersion', '==', 1)),
-      (snap) => {
-        setCoupons(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Coupon, 'id'>) })));
-      },
-      () => {}
-    );
-
-    const unsubNotifs = onSnapshot(
-      query(collection(db, 'notifications'), where('schemaVersion', '==', 1)),
-      (snap) => {
-        const list = snap.docs
-          .map((d) => ({ id: d.id, ...(d.data() as Omit<NotificationItem, 'id'>) }))
-          .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-        setNotifications(list);
-      },
-      () => {}
-    );
 
     return () => {
-      unsubCategories();
-      unsubProducts();
-      unsubOrders();
-      unsubCoupons();
-      unsubNotifs();
+      catalogWs?.close();
+      adminWs?.close();
     };
   }, [loadFromApi]);
 
-  const completeOnboarding = useCallback((phone?: string) => {
-    setHasCompletedOnboarding(true);
-    void AsyncStorage.setItem(STORAGE_KEYS.onboarded, 'true').catch(() => {});
-    if (phone && phone.trim().length >= 8) {
-      const normalized = phone.trim().startsWith('+') ? phone.trim() : `+91 ${phone.trim()}`;
-      setCustomerPhone(normalized);
-      void AsyncStorage.setItem(
-        STORAGE_KEYS.customerProfile,
-        JSON.stringify({ name: customerName, phone: normalized })
-      ).catch(() => {});
-    }
-  }, [customerName]);
+  const completeOnboarding = useCallback(
+    (phone?: string) => {
+      setHasCompletedOnboarding(true);
+      void AsyncStorage.setItem(STORAGE_KEYS.onboarded, 'true').catch(() => {});
+      if (phone && phone.trim().length >= 8) {
+        const normalized = phone.trim().startsWith('+') ? phone.trim() : `+91 ${phone.trim()}`;
+        setCustomerPhone(normalized);
+        void AsyncStorage.setItem(
+          STORAGE_KEYS.customerProfile,
+          JSON.stringify({ name: customerName, phone: normalized })
+        ).catch(() => {});
+      }
+    },
+    [customerName]
+  );
 
   const updateCustomerInfo = useCallback((name: string, phone: string) => {
     setCustomerName(name);
@@ -540,24 +478,26 @@ export function MobileStoreProvider({ children }: { children: React.ReactNode })
     setSelectedAddressId(newId);
   }, []);
 
-  const deleteAddress = useCallback((id: string) => {
-    setAddresses((prev) => {
-      if (prev.length <= 1) return prev;
-      const filtered = prev.filter((a) => a.id !== id);
-      if (id === selectedAddressId && filtered[0]) {
-        setSelectedAddressId(filtered[0].id);
-      }
-      return filtered;
-    });
-  }, [selectedAddressId]);
+  const deleteAddress = useCallback(
+    (id: string) => {
+      setAddresses((prev) => {
+        if (prev.length <= 1) return prev;
+        const filtered = prev.filter((a) => a.id !== id);
+        if (id === selectedAddressId && filtered[0]) {
+          setSelectedAddressId(filtered[0].id);
+        }
+        return filtered;
+      });
+    },
+    [selectedAddressId]
+  );
 
   const addRecentSearch = useCallback((term: string) => {
     const clean = term.trim();
     if (!clean) return;
-    setRecentSearches((prev) => [
-      clean,
-      ...prev.filter((t) => t.toLowerCase() !== clean.toLowerCase()),
-    ].slice(0, 8));
+    setRecentSearches((prev) =>
+      [clean, ...prev.filter((t) => t.toLowerCase() !== clean.toLowerCase())].slice(0, 8)
+    );
   }, []);
 
   const clearRecentSearches = useCallback(() => setRecentSearches([]), []);
@@ -600,18 +540,22 @@ export function MobileStoreProvider({ children }: { children: React.ReactNode })
             );
     }
 
+    const freeThreshold = appConfig.freeDeliveryThreshold ?? FREE_DELIVERY_THRESHOLD;
+    const baseDeliveryFee = appConfig.deliveryFee ?? STANDARD_DELIVERY_FEE;
+    const basePkgFee = appConfig.packagingFee ?? PACKAGING_FEE;
+
     const deliveryFee =
-      itemTotal === 0 || itemTotal >= FREE_DELIVERY_THRESHOLD ? 0 : STANDARD_DELIVERY_FEE;
-    const packagingFee = itemTotal > 0 ? PACKAGING_FEE : 0;
+      itemTotal === 0 || itemTotal >= freeThreshold ? 0 : baseDeliveryFee;
+    const packagingFee = itemTotal > 0 ? basePkgFee : 0;
     const grandTotal =
       itemTotal > 0 ? Math.max(1, itemTotal - discount + deliveryFee + packagingFee) : 0;
     const totalSavings =
       itemTotal > 0
         ? Math.max(0, mrpTotal - itemTotal) +
           discount +
-          (itemTotal >= FREE_DELIVERY_THRESHOLD ? STANDARD_DELIVERY_FEE : 0)
+          (itemTotal >= freeThreshold ? baseDeliveryFee : 0)
         : 0;
-    const freeDeliveryRemaining = Math.max(0, FREE_DELIVERY_THRESHOLD - itemTotal);
+    const freeDeliveryRemaining = Math.max(0, freeThreshold - itemTotal);
 
     return {
       rows,
@@ -627,7 +571,7 @@ export function MobileStoreProvider({ children }: { children: React.ReactNode })
       totalSavings,
       freeDeliveryRemaining,
     };
-  }, [cart, products, coupons, selectedCouponCode]);
+  }, [cart, products, coupons, selectedCouponCode, appConfig]);
 
   const placeOrder = useCallback(
     async ({
@@ -656,132 +600,47 @@ export function MobileStoreProvider({ children }: { children: React.ReactNode })
         imageUrl: r.product.imageUrl || '',
       }));
 
-      const randomNum = Math.floor(10000000 + Math.random() * 89999999);
-      const orderId = `ord-gbt${randomNum}`;
-      const orderNumber = `#GBT${randomNum}`;
-      const nowIso = new Date().toISOString();
+      const pricing = {
+        itemTotal: cartSummary.itemTotal,
+        discount: cartSummary.discount,
+        ...(cartSummary.discount > 0 && cartSummary.appliedCoupon
+          ? { couponCode: cartSummary.appliedCoupon.code }
+          : {}),
+        deliveryFee: cartSummary.deliveryFee,
+        packagingFee: cartSummary.packagingFee,
+        grandTotal: cartSummary.grandTotal,
+        totalSavings: cartSummary.totalSavings,
+      };
 
-      const body: Omit<Order, 'id'> = {
-        orderNumber,
-        storeId: DEFAULT_STORE_ID,
-        customerName: nameInput.trim().slice(0, 100) || 'Guest Shopper',
-        customerPhone: phoneInput.trim().slice(0, 24) || '+91 98480 12345',
-        deliveryAddress: selectedAddress,
-        items: orderItems,
-        pricing: {
-          itemTotal: cartSummary.itemTotal,
-          discount: cartSummary.discount,
-          ...(cartSummary.discount > 0 && cartSummary.appliedCoupon
-            ? { couponCode: cartSummary.appliedCoupon.code }
-            : {}),
-          deliveryFee: cartSummary.deliveryFee,
-          packagingFee: cartSummary.packagingFee,
-          grandTotal: cartSummary.grandTotal,
-          totalSavings: cartSummary.totalSavings,
-        },
-        paymentMethod,
-        paymentStatus: paymentMethod === 'cod' ? 'cod_due' : 'paid',
-        status: 'placed',
-        statusTimeline: [
-          {
-            status: 'placed',
-            label: 'Order Placed',
-            note: 'Order received at Chittoor Hub. Assigning picker now.',
-            timestamp: formatNowTime(),
-          },
-        ],
-        deliveryPartner: {
+      const createdOrder = await apiRequest<Order>('/api/v1/orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          storeId: DEFAULT_STORE_ID,
+          customerName: nameInput.trim().slice(0, 100) || 'Guest Shopper',
+          customerPhone: phoneInput.trim().slice(0, 24) || '+91 98480 12345',
+          deliveryAddress: selectedAddress,
+          items: orderItems,
+          pricing,
+          paymentMethod,
+        }),
+      });
+
+      const hydratedOrder: Order = {
+        ...createdOrder,
+        deliveryPartner: createdOrder.deliveryPartner || {
           name: 'Karthik S.',
           rating: 4.8,
           deliveriesCount: 2340,
           phone: '+91 98491 77820',
         },
-        etaText: '10–15 mins',
-        schemaVersion: 1,
-        createdAt: nowIso,
-        updatedAt: nowIso,
       };
 
-      if (MOBILE_DATA_SOURCE === 'api') {
-        const createdOrder = await apiRequest<Order>('/api/v1/orders', {
-          method: 'POST',
-          body: JSON.stringify({
-            storeId: body.storeId,
-            customerName: body.customerName,
-            customerPhone: body.customerPhone,
-            deliveryAddress: body.deliveryAddress,
-            items: orderItems.map((it) => ({
-              productId: it.productId,
-              variantId: it.variantId,
-              name: it.name,
-              variantLabel: it.variantLabel,
-              unitPrice: it.unitPrice,
-              mrp: it.mrp,
-              qty: it.qty,
-            })),
-            pricing: body.pricing,
-            paymentMethod,
-          }),
-        });
-        const mergedOrder: Order = {
-          ...body,
-          ...createdOrder,
-          items: orderItems,
-          deliveryPartner: createdOrder.deliveryPartner || body.deliveryPartner,
-        };
-        setOrders((prev) => [mergedOrder, ...prev]);
-        setNotifications((prev) => [
-          {
-            id: `notif-${Date.now()}`,
-            category: 'orders',
-            title: `Order ${mergedOrder.orderNumber} Confirmed!`,
-            message: `${orderItems.length} item${orderItems.length > 1 ? 's' : ''} (₹${cartSummary.grandTotal}) placed. Arriving in 10–15 mins.`,
-            orderId: mergedOrder.id,
-            artworkKey: 'box',
-            isRead: false,
-            schemaVersion: 1,
-            createdAt: nowIso,
-          },
-          ...prev,
-        ]);
-        setCart((prev) => prev.filter((item) => !item.selected));
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-        return mergedOrder;
-      }
-
-      await setDoc(doc(db, 'orders', orderId), body);
-
-      // Decrement live Firestore stock for ordered variants
-      for (const row of selectedRows) {
-        const nextVariants = row.product.variants.map((v) =>
-          v.id === row.variant.id
-            ? { ...v, stock: Math.max(0, v.stock - row.cartItem.qty) }
-            : v
-        );
-        await updateDoc(doc(db, 'products', row.product.id), {
-          variants: nextVariants,
-          updatedAt: nowIso,
-        });
-      }
-
-      // Emit real-time order confirmation notification
-      await setDoc(doc(db, 'notifications', `notif-${Date.now()}`), {
-        category: 'orders',
-        title: `Order ${orderNumber} Confirmed!`,
-        message: `${orderItems.length} item${orderItems.length > 1 ? 's' : ''} (₹${cartSummary.grandTotal}) placed. Arriving in 10–15 mins.`,
-        orderId,
-        artworkKey: 'box',
-        isRead: false,
-        schemaVersion: 1,
-        createdAt: nowIso,
-      });
-
       setCart((prev) => prev.filter((item) => !item.selected));
+      void loadFromApi(true);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-
-      return { id: orderId, ...body };
+      return hydratedOrder;
     },
-    [cartSummary, selectedAddress]
+    [cartSummary, selectedAddress, loadFromApi]
   );
 
   const reorderFromOrder = useCallback(
@@ -792,40 +651,29 @@ export function MobileStoreProvider({ children }: { children: React.ReactNode })
   );
 
   const rateOrder = useCallback(async (orderId: string, rating: number) => {
-    if (MOBILE_DATA_SOURCE === 'api') {
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.id === orderId ? { ...o, rating, updatedAt: new Date().toISOString() } : o
-        )
-      );
-      triggerLightHaptic();
-      return;
-    }
-    await updateDoc(doc(db, 'orders', orderId), {
-      rating,
-      updatedAt: new Date().toISOString(),
+    await apiRequest(`/api/v1/orders/${encodeURIComponent(orderId)}/rating`, {
+      method: 'PATCH',
+      body: JSON.stringify({ rating }),
     });
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId ? { ...o, rating, updatedAt: new Date().toISOString() } : o
+      )
+    );
     triggerLightHaptic();
   }, []);
 
   const markNotificationRead = useCallback(async (id: string) => {
-    if (MOBILE_DATA_SOURCE === 'api') {
-      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
-      return;
-    }
-    await updateDoc(doc(db, 'notifications', id), { isRead: true });
+    await apiRequest(`/api/v1/notifications/${encodeURIComponent(id)}/read`, {
+      method: 'PATCH',
+    }).catch(() => {});
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
   }, []);
 
   const markAllNotificationsRead = useCallback(async () => {
-    if (MOBILE_DATA_SOURCE === 'api') {
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      return;
-    }
-    const unread = notifications.filter((n) => !n.isRead);
-    await Promise.all(
-      unread.map((n) => updateDoc(doc(db, 'notifications', n.id), { isRead: true }))
-    );
-  }, [notifications]);
+    await apiRequest('/api/v1/notifications/read-all', { method: 'POST' }).catch(() => {});
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+  }, []);
 
   const unreadNotificationsCount = useMemo(
     () => notifications.filter((n) => !n.isRead).length,
@@ -834,6 +682,7 @@ export function MobileStoreProvider({ children }: { children: React.ReactNode })
 
   const value = useMemo<MobileStoreContextValue>(
     () => ({
+      appConfig,
       categories,
       products,
       orders,
@@ -843,7 +692,7 @@ export function MobileStoreProvider({ children }: { children: React.ReactNode })
       refreshing,
       refreshCatalog,
       hydrated,
-      firestoreError,
+      syncError,
       hasCompletedOnboarding,
       completeOnboarding,
       customerName,
@@ -878,6 +727,7 @@ export function MobileStoreProvider({ children }: { children: React.ReactNode })
       markAllNotificationsRead,
     }),
     [
+      appConfig,
       categories,
       products,
       orders,
@@ -887,7 +737,7 @@ export function MobileStoreProvider({ children }: { children: React.ReactNode })
       refreshing,
       refreshCatalog,
       hydrated,
-      firestoreError,
+      syncError,
       hasCompletedOnboarding,
       completeOnboarding,
       customerName,

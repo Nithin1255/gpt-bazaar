@@ -3,25 +3,15 @@
 ## 1. Product Summary
 **GPT Bazaar ("Groceries in Minutes")** is a hyperlocal quick-commerce grocery delivery platform inspired by Blinkit, Zepto, and BigBasket, delivering daily essentials in 10–15 minutes.
 
-## 2. Ecosystem Architecture
-| Sub-Project | Directory | Tech Stack | Responsibility |
+## 2. Ecosystem Architecture (Standalone Deployable Modules)
+| Sub-Project | Directory | Tech Stack & Deployment | Responsibility |
 | :--- | :--- | :--- | :--- |
-| **Live Dual Preview (AI Studio)** | `/src/` | React 19, Vite, Tailwind CSS v4, Firebase JS SDK | Interactive 16-screen Customer Mobile preview + Admin Operations Console synced live to Firestore |
-| **Customer Mobile App** | `/mobile-expo/` | React Native, Expo SDK 52, Expo Router, TypeScript, Firebase JS SDK | Production iOS/Android customer app with modular reusable UI primitives |
-| **Admin Web Console** | `/admin-nextjs/` | Next.js 15 App Router, TanStack React Query, Socket.IO Client, Firebase | Store catalog publishing, variant inventory control, live order dispatch |
-| **Core Backend API** | `/backend-python/` | Python 3.11+, FastAPI, Pydantic v2, WebSockets, Firebase Admin SDK | Authoritative REST API, real-time WebSocket event hub, Phase 2+ payment & dispatch webhooks |
-| **Cloud Data & Infra** | `/firebase-blueprint.json`, `/firestore.rules` | Firebase Firestore, Auth, Storage (Phase 2), FCM (Phase 3), Crashlytics (Phase 4) | Generalized, versioned NoSQL schema and real-time persistence |
+| **Admin Web Console** | `gpt-bazaar/web/` | Next.js 15 App Router, TypeScript, TanStack React Query v5, Tailwind CSS v4 (**Vercel**) | Manage products, upload images, manage categories, configure mobile storefront settings, and dispatch orders via FastAPI |
+| **Core Backend API** | `gpt-bazaar/backend/` | Python 3.11+, FastAPI, Pydantic v2, WebSockets, `psycopg`, `supabase` (**Render**) | Single authoritative REST + WebSocket + Media Upload API connected to Supabase PostgreSQL (auto-migrated) & Supabase Storage (`catalog-images`) |
+| **Customer Mobile App** | `gpt-bazaar/mobile/` | React Native, Expo SDK 52, Expo Router, TypeScript (**Expo EAS**) | Production iOS/Android customer app fetching products, categories, storefront config, and orders from Supabase through FastAPI |
+| **Legacy AI Studio Prototype** | `/src/` | React 19, Vite, Tailwind CSS v4 | Original AI Studio root preview (isolated from `gpt-bazaar/{web,backend,mobile}`) |
 
-## 3. Brand & Visual Design System
-- **Brand Name**: `GPT Bazaar` — *Groceries in Minutes*
-- **Primary Brand Green**: `#0E6F2D` (Deep Splash `#074220`, Hover `#0A5823`)
-- **Accent Citrus Yellow**: `#FFC800` (Brand mark accent, savings badge, location CTA)
-- **Mint Surface Tint**: `#EDF8F0` | **Neutral Canvas**: `#F6F8F7` | **Card Surface**: `#FFFFFF`
-- **Typography**: `Plus Jakarta Sans` (Display/Headings), `DM Sans` (Body/UI), `JetBrains Mono` (`tabular-nums` for `₹` prices, order IDs `#GBT...`, SKUs, stock)
-- **Default Market**: India (`₹ INR`), initial dark-store hub in Chittoor / Pudukpet (`517584`).
-
-## 4. Coding & Modularity Rules for Future AI Agents
-1. **Schema Synchronicity**: Every database mutation across Mobile, Admin, and FastAPI must conform to `firebase-blueprint.json` (`schemaVersion: 1`) and `docs/DATABASE_SCHEMA.md`.
-2. **Reusable Primitives First**: Never duplicate product card, quantity stepper, dietary dot, or order timeline markup—extend shared components.
-3. **Real-Time Contract**: All live events use the canonical event names: `order.created`, `order.status_updated`, `inventory.updated`, `product.published`.
-4. **No Hardcoded Secrets**: Keep Firebase credentials, payment keys, and Maps API keys strictly in environment variables (`.env` / `.env.local`).
+## 3. Isolation & Deployment Rules
+1. **Zero Local Cross-Dependencies**: `gpt-bazaar/web`, `gpt-bazaar/backend`, and `gpt-bazaar/mobile` must never import files from each other or from outside their own folder.
+2. **Shared Backend & Database**: Both `web` and `mobile` communicate with the same Python FastAPI backend (`backend`), which persists all structured data in Supabase PostgreSQL and uploaded images in Supabase Storage (`catalog-images`).
+3. **No Hardcoded Secrets**: Keep `DATABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` strictly in backend environment variables.

@@ -115,6 +115,16 @@ export default function ProductDetailsScreen() {
       >
         {/* Hero Media Card */}
         <View style={styles.mediaCard}>
+          <View style={styles.heroMediaFrame}>
+            <ProductMedia
+              imageUrl={product.imageUrl}
+              artworkKey={product.artworkKey}
+              size={140}
+              resizeMode="cover"
+              style={styles.fullMedia}
+            />
+          </View>
+
           <View style={styles.mediaTopRow}>
             {activeVariant.discountPercent > 0 ? (
               <View style={styles.discountBadge}>
@@ -141,15 +151,6 @@ export default function ProductDetailsScreen() {
                 }
               />
             </Pressable>
-          </View>
-
-          <View style={styles.heroMediaFrame}>
-            <ProductMedia
-              imageUrl={product.imageUrl}
-              artworkKey={product.artworkKey}
-              size={140}
-              style={styles.fullMedia}
-            />
           </View>
         </View>
 
@@ -391,13 +392,20 @@ const styles = StyleSheet.create({
   },
   backHomeBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   mediaCard: {
+    position: 'relative',
     backgroundColor: GPTBazaarTheme.colors.surface,
     borderRadius: 20,
-    padding: 14,
+    padding: 0,
     borderWidth: 1,
     borderColor: GPTBazaarTheme.colors.borderSubtle,
+    overflow: 'hidden',
   },
   mediaTopRow: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    right: 12,
+    zIndex: 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -413,18 +421,18 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F8FAF8',
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
     borderWidth: 1,
     borderColor: GPTBazaarTheme.colors.borderSubtle,
     alignItems: 'center',
     justifyContent: 'center',
   },
   heroMediaFrame: {
-    height: 210,
+    width: '100%',
+    height: 260,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 4,
-    padding: 10,
+    backgroundColor: '#F8FAF8',
   },
   fullMedia: { width: '100%', height: '100%' },
   card: {
@@ -605,7 +613,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   similarSection: { marginTop: 4 },
-  similarScroll: { paddingRight: 8 },
+  similarScroll: { flexDirection: 'row', gap: 10, paddingRight: 8, paddingVertical: 2 },
   bottomBar: {
     flexDirection: 'row',
     alignItems: 'center',

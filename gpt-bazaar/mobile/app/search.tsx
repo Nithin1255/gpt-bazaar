@@ -388,5 +388,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 },
-  gridItem: { width: '50%' },
+  gridItem: { width: '50%', padding: 4 },
 });
